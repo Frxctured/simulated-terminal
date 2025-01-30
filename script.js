@@ -1,11 +1,16 @@
 const filesystem = {
     'home': {
-        'about-me.txt': 'Hello! I am Frxctured (15M). I am a beginner developer, and I am passionate about learning new things. I am currently learning web development and I am excited to share my journey with you! I also enjoy playing video games and want to make my own one day. I love experimenting with new things, like new languages, frameworks, and libraries. I am also a huge fan of open-source software and I am excited to contribute to the community!',
-        'projects': {
-            'LoremIpsum.txt': 'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.',
-            'githubRepo.txt': 'Check out this Project on GitHub: github.com/Frxctured/simulated-terminal',
+        'changelogs': {
+            'summary.txt': 'v0.2 30.01.2025 - Added more commands and improved the terminal experience. <br> v0.1 29.01.2025 - Initial release of the simulated terminal.',
+            'v0.1.txt': 'v0.1 Changelog 29.01.2025 <br> - Initial release of the simulated terminal.',
+            'v0.2.txt': 'v0.2 Changelog 30.01.2025 <br> - Added clear command and improved the terminal experience. <br> - Fixed bug where you could cd into files.',
         },
-        'contact.txt': 'Email: business@frxctured.com <br> GitHub: github.com/Frxctured <br> Discord: @_.frxctured'
+        'projects': {
+            'SimulatedTerminal.txt': 'This is a simulated terminal project created by Frxctured. It is a simple terminal emulator that allows you to navigate through a virtual file system and execute basic commands. The project is written in HTML, CSS, and JavaScript. Feel free to explore the project and try out different commands!',
+        },
+        'about-me.txt': 'Hello! I am Frxctured (15M). I am a beginner developer, and I am passionate about learning new things. I am currently learning web development and I am excited to share my journey with you! I love experimenting with new things, like new languages, frameworks, and libraries. I am also a huge fan of open-source software and I am excited to contribute to the community!',
+        'contact.txt': 'Email: business@frxctured.com <br> GitHub: github.com/Frxctured <br> Discord: @_.frxctured',
+        'about-project.txt': 'Check out this Project on GitHub: github.com/Frxctured/simulated-terminal'
     }
 };
 
@@ -18,12 +23,14 @@ const input_line = document.getElementById('input-line');
 const input = document.getElementById('command-input');
 const host = document.getElementById('host');
 
+// BOOT ANIMATION 
+
 window.addEventListener('load', function () {
     output.style.display = 'none';
     input_line.style.display = 'none';
 
     let dotCount = 0;
-    const bootMessages = '[System v0.1] Booting up';
+    const bootMessages = '[System v0.2] Booting up';
     const maxDots = 3;
     let intervalId;
 
@@ -51,8 +58,13 @@ window.addEventListener('load', function () {
     }, 8500);
     
 
-    printOutput('<p class="system">[System v0.1] Welcome to Frxctured\'s simulated Terminal! Type "help" to get started.</p>');
-})
+    printOutput('<p class="system">[System v0.2] Welcome to Frxctured\'s simulated Terminal! Type "help" to get started.</p>');
+    if (isMobileDevice) {
+        printOutput('<p class="system">[System v0.2] Detected a mobile device.</p><p class="error">DISCLAIMER: This site was not fully meant to be operational on mobile devices. You might experience unintended behaviour.</p>');
+    }
+});
+
+//BOOT ANIMATION END
 
 function printOutput(text) {
     output.innerHTML += `<div>${text}</div>`;
@@ -79,7 +91,17 @@ function handleCommand(command) {
         case 'ls':
             const currentDir = resolvePath(currentPath);
             if (currentDir && typeof currentDir === 'object') {
-                printOutput(Object.keys(currentDir).join(' '));
+                // Loop through each entry in the directory
+                const outputText = Object.keys(currentDir).map(item => {
+                    // Check if it's a directory (object)
+                    if (typeof currentDir[item] === 'object') {
+                        return `<span class="directory">${item}</span>`; // Add directory style
+                    } else {
+                        return item; // Normal file, no special styling
+                    }
+                }).join(' ');
+
+                printOutput(outputText);
             } else {
                 printOutput('<p class="error">Error: Cannot list contents.</p>');
             }
@@ -88,23 +110,31 @@ function handleCommand(command) {
         case 'cd':
             if (args[1]) {
                 if (args[1] === '..') {
+                    // Check if we're already at the home directory (['home'])
                     if (currentPath.length > 1) {
                         currentPath.pop();
                         const displayPath = currentPath.filter(dir => dir !== 'home').join('/') || '~';
-                        host.innerHTML = `guest@frxctured:${displayPath}$`;
+                        if (currentPath.length > 1) {
+                            host.innerHTML = `guest@frxctured:~/${displayPath}$`;
+                        } else {
+                            host.innerHTML = `guest@frxctured:~$`;
+                        }
                     }
                 } else {
                     const newPath = [...currentPath, args[1]];
-                    if (resolvePath(newPath)) {
-                        currentPath = newPath;
+                    const resolvedPath = resolvePath(newPath);
+
+                    if (resolvedPath && typeof resolvedPath === 'object') { // Ensure it's a directory
+                        currentPath = newPath; // Navigate into the directory
                         const displayPath = currentPath.filter(dir => dir !== 'home').join('/') || '~';
                         host.innerHTML = `guest@frxctured:~/${displayPath}$`;
+                    } else if (resolvedPath && typeof resolvedPath === 'string') {
+                        printOutput(`<p class="error">Error: "${args[1]}" is a file, not a directory.</p>`);
                     } else {
                         printOutput(`<p class="error">Error: No such directory: "${args[1]}"</p>`);
                     }
                 }
             }
-            console.log(currentPath);
             break;
 
         case 'cat':
@@ -118,8 +148,21 @@ function handleCommand(command) {
             }
             break;
 
+        case 'clear':
+        case 'cls':
+            output.innerHTML = '';
+            break;
+
         case 'help':
-            printOutput('Available commands: ls, cd &ltdir&gt, cat &ltfile&gt, help');
+            printOutput(`
+                <pre>
+Available commands:<br>
+ls              lists files/directories in current directory.
+cd &ltdir&gt        changes to the specified directory (e.g "cd projects").
+cat &ltfile&gt      prints out a files contents (e.g "cat about-me.txt").
+clear/cls       clears the terminal.
+help            prints this help message.
+</pre>`);
             break;
 
         case '':
@@ -130,15 +173,27 @@ function handleCommand(command) {
     }
 }
 
-input.addEventListener('keypress', function (event) {
-    if (event.key === 'Enter') {
-        const command = input.value;
-        printOutput(`<span class="prompt">${host.innerHTML}</span>${command}`);
-        handleCommand(command);
-        input.value = '';
-    }
-});
+function isTouchDevice() {
+    return window.matchMedia("(pointer: coarse)").matches;
+}
 
-document.addEventListener('keypress', function () { 
-    input.focus(); 
-});
+const isMobileDevice = isTouchDevice(); // Detect device type
+
+if (isMobileDevice) {
+    input.attributes.removeAttribute('disabled');
+} else {
+    window.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            const command = input.value;
+            printOutput(`<span class="prompt">${host.innerHTML}</span>${command}`);
+            handleCommand(command);
+            input.value = '';
+        }
+        if (event.key === 'Backspace') {
+            event.preventDefault();
+            input.value = input.value.slice(0, -1);
+        } else if (event.key.length === 1) {
+            input.value += event.key;
+        }
+    });
+}
